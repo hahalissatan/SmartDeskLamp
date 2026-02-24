@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login - Smart Lamp</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <style>
+        :root { --blynk-green: #23d160; --blynk-bg: #1a1a1a; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--blynk-bg); color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: #2a2a2a; padding: 30px; border-radius: 12px; width: 320px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        input { background: #333; border: 1px solid #444; color: white; padding: 12px; margin: 15px 0; border-radius: 5px; width: 100%; box-sizing: border-box; }
+        .btn { background: var(--blynk-green); color: white; padding: 12px; border: none; border-radius: 5px; cursor: pointer; width: 100%; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Smart Lamp</h2>
+        <p>Enter last 5 digits of Matric No.</p>
+        <input type="text" id="matric-input" placeholder="e.g. 12345" maxlength="5">
+        <button class="btn" onclick="checkLogin()">LOGIN</button>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUmDSsJguZf1LIwp8t9UW-5wIx0mBTGgg",
+            databaseURL: "https://smart-desk-lamp-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "smart-desk-lamp",
+            storageBucket: "smart-desk-lamp.firebasestorage.app",
+            messagingSenderId: "923022444862",
+            appId: "1:923022444862:web:7fb9694064a2b0faac046f",
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        function checkLogin() {
+            const matric = document.getElementById("matric-input").value;
+            if(matric.length < 5) return alert("Enter 5 digits");
+
+            db.ref("Users/" + matric).once("value").then((snapshot) => {
+                // SAVE FIRST
+                localStorage.setItem("currentMatric", matric); 
+                
+                if (snapshot.exists()) {
+                    localStorage.setItem("lampPath", snapshot.val().path);
+                    // REDIRECT SECOND
+                    window.location.href = "dashboard.html";
+                } else {
+                    window.location.href = "register.html";
+                }
+            }).catch(err => {
+                console.error("Login Error:", err);
+                alert("Database connection failed.");
+            });
+        }
+    </script>
+</body>
+</html>

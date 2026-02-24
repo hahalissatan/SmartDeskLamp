@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Register Lamp</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root { --blynk-green: #23d160; --blynk-bg: #1a1a1a; }
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            background: var(--blynk-bg); 
+            color: white; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0; 
+        }
+        .card { 
+            background: #2a2a2a; 
+            padding: 30px; 
+            border-radius: 20px; 
+            width: 340px; 
+            text-align: center; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            position: relative; /* Add this so the button stays inside the card */
+            background: #2a2a2a;
+        }
+
+        #cancelBtn {
+            display: none; /* Hidden by default */
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: #3d3d3d;
+            border: none;
+            color: #ff4444; /* Red color for cancel */
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 14px;
+            transition: 0.3s;
+        }
+
+        #cancelBtn:hover {
+            background: #ff4444;
+            color: white;
+        }
+
+        .label { 
+            display: block; 
+            text-align: left; 
+            color: #888; 
+            font-size: 0.75em; 
+            margin: 10px 0 5px 5px; 
+            text-transform: uppercase;
+        }
+        select, input { 
+            background: #333; 
+            border: 1px solid #444; 
+            color: white; 
+            padding: 12px; 
+            margin-bottom: 10px; 
+            border-radius: 8px; 
+            width: 100%; 
+            box-sizing: border-box;
+            font-size: 1em;
+        }
+        .btn { 
+            background: var(--blynk-green); 
+            color: white; 
+            padding: 15px; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            width: 100%; 
+            font-weight: bold; 
+            margin-top: 20px;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <button id="cancelBtn" onclick="window.location.href='dashboard.html'" title="Cancel">
+            <i class="fas fa-times"></i>
+        </button>
+        <h2 style="margin-top:0;">Setup Lamp</h2>
+        <p style="color:#666; font-size: 0.9em;">Assign your current location</p>
+        
+        <span class="label">Select Block</span>
+        <select id="reg-block" required>
+            <option value="" disabled selected hidden>Choose Block...</option>
+            <option value="A1">A1</option>
+            <option value="A2">A2</option>
+            <option value="B1">B1</option>
+            <option value="B2">B2</option>
+            <option value="C1">C1</option>
+            <option value="C2">C2</option>
+        </select>
+
+        <span class="label">Select Floor</span>
+        <select id="reg-floor" required>
+            <option value="" disabled selected hidden>Choose Floor...</option>
+            <option value="T1">T1</option>
+            <option value="T2">T2</option>
+            <option value="T3">T3</option>
+        </select>
+
+        <span class="label">Room Number</span>
+        <input type="text" id="reg-room" placeholder="Enter Room (e.g. 31)" maxlength="3">
+
+        <span class="label">Lamp ID</span>
+        <select id="reg-lamp" required>
+            <option value="" disabled selected hidden>Choose Lamp...</option>
+            <option value="A">Lamp A</option>
+            <option value="B">Lamp B</option>
+            <option value="C">Lamp C</option>
+            <option value="D">Lamp D</option>
+        </select>
+
+        <button class="btn" onclick="saveRegistration()">ACTIVATE DASHBOARD</button>
+    </div>
+
+    <script>
+        const firebaseConfig = { 
+            /* PASTE YOUR CONFIG HERE */ 
+            apiKey: "AIzaSyDUmDSsJguZf1LIwp8t9UW-5wIx0mBTGgg",
+            databaseURL: "https://smart-desk-lamp-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "smart-desk-lamp",
+            storageBucket: "smart-desk-lamp.firebasestorage.app",
+            messagingSenderId: "923022444862",
+            appId: "1:923022444862:web:7fb9694064a2b0faac046f",
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        function saveRegistration() {
+            const matric = localStorage.getItem("currentMatric");
+            if(!matric) {
+                alert("Session expired. Please login again.");
+                window.location.href = "index.html";
+                return;
+            }
+
+            // Get all values
+            const b = document.getElementById("reg-block").value;
+            const f = document.getElementById("reg-floor").value;
+            const r = document.getElementById("reg-room").value.trim();
+            const l = document.getElementById("reg-lamp").value;
+
+            // VALIDATION: Check if ANY field is empty
+            if(!b || !f || !r || !l) {
+                return alert("Please complete all fields before activating.");
+            }
+
+            // Path format: Buildings/Block/Floor/Room/Lamp_ID
+            const path = `Buildings/${b}/${f}/${r}/Lamp_${l}`;
+            
+            db.ref("Users/" + matric).set({ 
+                path: path, 
+                registeredAt: Date.now() 
+            }).then(() => {
+                localStorage.setItem("lampPath", path);
+                window.location.href = "dashboard.html";
+            }).catch((err) => {
+                alert("Error saving: " + err.message);
+            });
+        }
+
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const mode = urlParams.get('mode');
+
+            // If the URL has ?mode=edit, show the cancel button
+            if (mode === 'edit') {
+                document.getElementById('cancelBtn').style.display = 'block';
+            }
+        }
+
+        // Update your existing registration function:
+        // Make sure that when they successfully register a NEW path, 
+        // you save it to localStorage before redirecting back to dashboard.
+    </script>
+</body>
+</html>
