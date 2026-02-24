@@ -89,46 +89,47 @@
     </style>
 </head>
 <body>
+    <div class="container">
+        <div class="card">
+            <button id="cancelBtn" onclick="window.location.href='dashboard.html'" title="Cancel">
+                <i class="fas fa-times"></i>
+            </button>
+            <h2 style="margin-top:0;">Setup Lamp</h2>
+            <p style="color:#666; font-size: 0.9em;">Assign your current location</p>
+            
+            <span class="label">Select Block</span>
+            <select id="reg-block" required>
+                <option value="" disabled selected hidden>Choose Block...</option>
+                <option value="A1">A1</option>
+                <option value="A2">A2</option>
+                <option value="B1">B1</option>
+                <option value="B2">B2</option>
+                <option value="C1">C1</option>
+                <option value="C2">C2</option>
+            </select>
 
-    <div class="card">
-        <button id="cancelBtn" onclick="window.location.href='dashboard.html'" title="Cancel">
-            <i class="fas fa-times"></i>
-        </button>
-        <h2 style="margin-top:0;">Setup Lamp</h2>
-        <p style="color:#666; font-size: 0.9em;">Assign your current location</p>
-        
-        <span class="label">Select Block</span>
-        <select id="reg-block" required>
-            <option value="" disabled selected hidden>Choose Block...</option>
-            <option value="A1">A1</option>
-            <option value="A2">A2</option>
-            <option value="B1">B1</option>
-            <option value="B2">B2</option>
-            <option value="C1">C1</option>
-            <option value="C2">C2</option>
-        </select>
+            <span class="label">Select Floor</span>
+            <select id="reg-floor" required>
+                <option value="" disabled selected hidden>Choose Floor...</option>
+                <option value="T1">T1</option>
+                <option value="T2">T2</option>
+                <option value="T3">T3</option>
+            </select>
 
-        <span class="label">Select Floor</span>
-        <select id="reg-floor" required>
-            <option value="" disabled selected hidden>Choose Floor...</option>
-            <option value="T1">T1</option>
-            <option value="T2">T2</option>
-            <option value="T3">T3</option>
-        </select>
+            <span class="label">Room Number</span>
+            <input type="text" id="reg-room" placeholder="Enter Room (e.g. 31)" maxlength="3">
 
-        <span class="label">Room Number</span>
-        <input type="text" id="reg-room" placeholder="Enter Room (e.g. 31)" maxlength="3">
+            <span class="label">Lamp ID</span>
+            <select id="reg-lamp" required>
+                <option value="" disabled selected hidden>Choose Lamp...</option>
+                <option value="A">Lamp A</option>
+                <option value="B">Lamp B</option>
+                <option value="C">Lamp C</option>
+                <option value="D">Lamp D</option>
+            </select>
 
-        <span class="label">Lamp ID</span>
-        <select id="reg-lamp" required>
-            <option value="" disabled selected hidden>Choose Lamp...</option>
-            <option value="A">Lamp A</option>
-            <option value="B">Lamp B</option>
-            <option value="C">Lamp C</option>
-            <option value="D">Lamp D</option>
-        </select>
-
-        <button class="btn" onclick="saveRegistration()">ACTIVATE DASHBOARD</button>
+            <button class="btn" onclick="saveRegistration()">ACTIVATE DASHBOARD</button>
+        </div>
     </div>
 
     <script>
