@@ -459,36 +459,40 @@
         }
 
         function initializeListeners() {
-            // B. Listen to Live Status and Sensors
+            // A. Listen to Controls (So the toggles and sliders move automatically)
+            db.ref(lampPath + "/Control").on("value", (snapshot) => {
+                const ctrl = snapshot.val();
+                if (!ctrl) return;
+                document.getElementById("powerToggle").checked = ctrl.systemPower;
+                document.getElementById("autoToggle").checked = ctrl.autoDim;
+                document.getElementById("auto-area").style.display = ctrl.autoDim ? "block" : "none";
+                document.getElementById("manual-area").style.display = ctrl.autoDim ? "none" : "block";
+                document.getElementById("brightSlider").value = ctrl.manualBrightness;
+                document.getElementById("manual-bright-val").innerText = Math.round((ctrl.manualBrightness / 255) * 100) + "%";
+            });
+
+            // B. Listen to Live Status and Sensors (The 4 Statuses Fix)
             db.ref(lampPath + "/Live_Data").on("value", (snapshot) => {
                 const data = snapshot.val();
                 if (!data) return;
                 
-                // 1. Keep your existing sensor updates
+                // 1. Update sensor values
                 document.getElementById("ldr-val").innerText = data.LDR_Raw;
                 document.getElementById("auto-bright-val").innerText = Math.round((data.Brightness / 255) * 100) + "%";
                 
-                // 2. THE FIX: Update Status Display using the "Status" string from ESP32
+                // 2. Update Status Display using the "Status" string from your ESP32
                 const statusBox = document.getElementById("status-display");
-                
-                // We pull the string directly (e.g., "ON: MOTION DETECTED", "OFF: BY USER", etc.)
                 const currentStatus = data.Status || "UNKNOWN"; 
                 statusBox.innerText = currentStatus;
 
-                // Simple logic to change the color based on if the status contains "ON" or "OFF"
+                // Color logic: Green for ON, Red for OFF
                 if (currentStatus.includes("ON")) {
-                    statusBox.style.color = "#23d160"; // Green
-                    statusBox.style.borderLeftColor = "#23d160";
+                    statusBox.style.color = "var(--blynk-green)"; 
+                    statusBox.style.borderLeftColor = "var(--blynk-green)";
                 } else {
-                    statusBox.style.color = "#ff4444"; // Red
-                    statusBox.style.borderLeftColor = "#ff4444";
+                    statusBox.style.color = "var(--blynk-red)"; 
+                    statusBox.style.borderLeftColor = "var(--blynk-red)";
                 }
-            });
-            db.ref(lampPath + "/Live_Data").on("value", (snapshot) => {
-                const data = snapshot.val();
-                if (!data) return;
-                document.getElementById("ldr-val").innerText = data.LDR_Raw;
-                document.getElementById("auto-bright-val").innerText = Math.round((data.Brightness / 255) * 100) + "%";
             });
         }
 
