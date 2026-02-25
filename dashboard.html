@@ -1,485 +1,546 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Dashboard - Smart Lamp</title>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        :root {
-            --blynk-green: #23d160;
-            --blynk-bg: #1a1a1a;
-            --card-bg: #2a2a2a;
-            --blynk-blue: #00bfff;
-            --blynk-red: #ff4444;
-        }
-
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            background: var(--blynk-bg);
-            color: white;
-            margin: 0;
-            display: block; 
-        }
-
-        /* 100% WIDTH NAVIGATION BAR */
-        .tabs-nav {
-            display: flex;
-            justify-content: space-around;
-            background: #111;
-            padding: 15px 0;
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-            border-bottom: 1px solid #333;
-            width: 100%;
-        }
-
-        .tab {
-            color: #666;
-            font-size: 0.85em;
-            font-weight: bold;
-            letter-spacing: 1px;
-            cursor: pointer;
-            transition: 0.3s;
-            padding-bottom: 5px;
-            border-bottom: 2px solid transparent;
-        }
-
-        .tab.active {
-            color: var(--blynk-blue);
-            border-bottom: 2px solid var(--blynk-blue);
-        }
-
-        /* CENTERED CONTENT CONTAINER */
-        #dashboard-container {
-            width: 100%;
-            max-width: 400px;
-            padding: 20px;
-            box-sizing: border-box;
-            margin: 0 auto;
-        }
-
-        .tab-content {
-            display: none;
-            animation: fadeIn 0.3s ease;
-        }
-
-        .active-content {
-            display: block;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .card {
-            background: var(--card-bg);
-            padding: 25px;
-            border-radius: 20px;
-            margin-bottom: 20px;
-            text-align: center;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
-
-        .label {
-            display: block;
-            color: #888;
-            font-size: 0.85em;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 15px;
-        }
-
-        #status-display {
-            background: #333;
-            padding: 12px;
-            border-radius: 8px;
-            font-weight: bold;
-            color: var(--blynk-red);
-            border-left: 6px solid var(--blynk-red);
-            margin-bottom: 10px;
-            display: inline-block;
-            width: 80%;
-        }
-
-        #path-text { font-size: 0.75em; color: #555; display: block; margin-top: 8px; }
-
-        .switch { position: relative; display: inline-block; width: 66px; height: 32px; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider-switch {
-            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
-            background-color: #444; transition: .4s; border-radius: 34px;
-        }
-        .slider-switch:before {
-            position: absolute; content: ""; height: 24px; width: 24px;
-            left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%;
-        }
-        input:checked + .slider-switch { background-color: var(--blynk-green); }
-        input:checked + .slider-switch:before { transform: translateX(34px); }
-
-        .data-val { font-size: 1.5em; font-weight: bold; margin: 10px 0; color: var(--blynk-green); }
-        hr { border: 0; border-top: 1px solid #383838; margin: 20px 0; }
-        
-        .mode-row { display: flex; justify-content: center; align-items: center; gap: 15px; }
-        .mode-row span { font-size: 0.9em; color: #777; }
-
-        input[type=range] { width: 100%; accent-color: var(--blynk-green); cursor: pointer; }
-
-        .btn-menu {
-            width: 100%;
-            padding: 12px;
-            margin: 8px 0;
-            border: none;
-            border-radius: 8px;
-            background: #333;
-            color: white;
-            font-weight: bold;
-            cursor: pointer;
-            text-align: left;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .btn-menu:hover { background: #444; }
-        .btn-menu i { width: 20px; text-align: center; }
-
-        .btn-menu[onclick="logout()"]:hover {
-            background: #442222;
-            color: #ff4444;
-        }
-
-        /* GRID VIEW - Single Column per row */
-        .view-grid {
-            display: grid;
-            grid-template-columns: 1fr; /* Only one per row now */
-            gap: 12px;
-        }
-
-        .log-card {
-            background: #222;
-            padding: 15px;
-            border-radius: 12px;
-            text-align: left;
-            border-left: 5px solid var(--blynk-blue); /* All cards are now Blue */
-            margin-bottom: 10px;
-            transition: transform 0.2s ease;
-        }
-
-        .log-card:active {
-            transform: scale(0.98); /* Slight click effect */
-        }
-        .log-card.off { border-left-color: var(--blynk-red); }
-
-        /* TABLE VIEW (Option 1) */
-        .view-table {
-            display: block; /* Back to normal list */
-        }
-        .history-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.75em;
-            text-align: left;
-            white-space: nowrap; /* Prevents text wrapping in tight tables */
-        }
-        .history-table th { color: #666; padding: 8px; border-bottom: 1px solid #333; }
-        .history-table td { padding: 8px; border-bottom: 1px solid #222; }
-
-        /* Card Extra Info - Hidden by default */
-        .card-details {
-            display: none; /* Hidden */
-            margin-top: 10px;
-            padding-top: 10px;
-            border-top: 1px solid #333;
-            font-size: 0.8em;
-            animation: slideDown 0.2s ease-out;
-        }
-
-        /* Show details when the parent card has the 'active' class */
-        .log-card.active .card-details {
-            display: flex;
-            gap: 15px;
-        }
-
-        @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-5px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* Add a small arrow indicator */
-        .expand-icon {
-            transition: transform 0.3s;
-            color: #555;
-            font-size: 0.8em;
-        }
-        .log-card.active .expand-icon {
-            transform: rotate(180deg);
-        }
-
-        /* Styling the scrollbar for the Activity Log list */
-        #log-list::-webkit-scrollbar {
-            width: 6px; /* Makes the bar thinner and sleeker */
-        }
-
-        #log-list::-webkit-scrollbar-track {
-            background: #1a1a1a; /* Very dark background to match the card */
-            border-radius: 10px;
-        }
-
-        #log-list::-webkit-scrollbar-thumb {
-            background: #444; /* Dark grey "handle" */
-            border-radius: 10px;
-            border: 1px solid #1a1a1a; /* Adds a little space around the handle */
-        }
-
-        #log-list::-webkit-scrollbar-thumb:hover {
-            background: #555; /* Slightly lighter when you hover over it */
-        }
-
-        /* For Firefox support */
-        #log-list {
-            scrollbar-width: thin;
-            scrollbar-color: #444 #1a1a1a;
-        }
-
-        /* Mobile Optimizations */
-        @media (max-width: 600px) {
-            body {
-                padding: 10px; /* Less empty space on the sides */
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Dashboard - Smart Lamp</title>
+        <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            :root {
+                --blynk-green: #23d160;
+                --blynk-bg: #1a1a1a;
+                --card-bg: #2a2a2a;
+                --blynk-blue: #00bfff;
+                --blynk-red: #ff4444;
             }
-            
+
+            body {
+                font-family: 'Segoe UI', sans-serif;
+                background: var(--blynk-bg);
+                color: white;
+                margin: 0;
+                display: block; 
+            }
+
+            /* 100% WIDTH NAVIGATION BAR */
+            .tabs-nav {
+                display: flex;
+                justify-content: space-around;
+                background: #111;
+                padding: 15px 0;
+                position: sticky;
+                top: 0;
+                z-index: 1000;
+                border-bottom: 1px solid #333;
+                width: 100%;
+            }
+
+            .tab {
+                color: #666;
+                font-size: 0.85em;
+                font-weight: bold;
+                letter-spacing: 1px;
+                cursor: pointer;
+                transition: 0.3s;
+                padding-bottom: 5px;
+                border-bottom: 2px solid transparent;
+            }
+
+            .tab.active {
+                color: var(--blynk-blue);
+                border-bottom: 2px solid var(--blynk-blue);
+            }
+
+            /* CENTERED CONTENT CONTAINER */
+            #dashboard-container {
+                width: 100%;
+                max-width: 400px;
+                padding: 20px;
+                box-sizing: border-box;
+                margin: 0 auto;
+            }
+
+            .tab-content {
+                display: none;
+                animation: fadeIn 0.3s ease;
+            }
+
+            .active-content {
+                display: block;
+            }
+
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(10px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+
             .card {
-                padding: 15px; /* Smaller padding inside cards */
+                background: var(--card-bg);
+                padding: 25px;
+                border-radius: 20px;
+                margin-bottom: 20px;
+                text-align: center;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            }
+
+            .label {
+                display: block;
+                color: #888;
+                font-size: 0.85em;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                margin-bottom: 15px;
+            }
+
+            #status-display {
+                background: #333;
+                padding: 12px;
+                border-radius: 8px;
+                font-weight: bold;
+                color: var(--blynk-red);
+                border-left: 6px solid var(--blynk-red);
+                margin-bottom: 10px;
+                display: inline-block;
+                width: 80%;
+            }
+
+            #path-text { font-size: 0.75em; color: #555; display: block; margin-top: 8px; }
+
+            .switch { position: relative; display: inline-block; width: 66px; height: 32px; }
+            .switch input { opacity: 0; width: 0; height: 0; }
+            .slider-switch {
+                position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+                background-color: #444; transition: .4s; border-radius: 34px;
+            }
+            .slider-switch:before {
+                position: absolute; content: ""; height: 24px; width: 24px;
+                left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%;
+            }
+            input:checked + .slider-switch { background-color: var(--blynk-green); }
+            input:checked + .slider-switch:before { transform: translateX(34px); }
+
+            .data-val { font-size: 1.5em; font-weight: bold; margin: 10px 0; color: var(--blynk-green); }
+            hr { border: 0; border-top: 1px solid #383838; margin: 20px 0; }
+            
+            .mode-row { display: flex; justify-content: center; align-items: center; gap: 15px; }
+            .mode-row span { font-size: 0.9em; color: #777; }
+
+            input[type=range] { width: 100%; accent-color: var(--blynk-green); cursor: pointer; }
+
+            .btn-menu {
+                width: 100%;
+                padding: 12px;
+                margin: 8px 0;
+                border: none;
+                border-radius: 8px;
+                background: #333;
+                color: white;
+                font-weight: bold;
+                cursor: pointer;
+                text-align: left;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+            .btn-menu:hover { background: #444; }
+            .btn-menu i { width: 20px; text-align: center; }
+
+            .btn-menu[onclick="logout()"]:hover {
+                background: #442222;
+                color: #ff4444;
+            }
+
+            /* GRID VIEW - Single Column per row */
+            .view-grid {
+                display: grid;
+                grid-template-columns: 1fr; /* Only one per row now */
+                gap: 12px;
             }
 
             .log-card {
-                padding: 12px;
+                background: #222;
+                padding: 15px;
+                border-radius: 12px;
+                text-align: left;
+                border-left: 5px solid var(--blynk-blue); /* All cards are now Blue */
+                margin-bottom: 10px;
+                transition: transform 0.2s ease;
             }
 
-            /* Make buttons and labels easier to tap with thumbs */
-            .btn-menu, .tab-button {
-                padding: 12px;
-                font-size: 0.9em;
+            .log-card:active {
+                transform: scale(0.98); /* Slight click effect */
+            }
+            .log-card.off { border-left-color: var(--blynk-red); }
+
+            /* TABLE VIEW (Option 1) */
+            .view-table {
+                display: block; /* Back to normal list */
+            }
+            .history-table {
+                width: 100%;
+                min-width: 480px; /* Reduced to make it feel more compact */
+                white-space: nowrap;
+                border-collapse: collapse;
+                font-size: 0.75em; /* Smaller base font for the table */
             }
 
-            /* Hide less important columns in Table View on mobile to prevent horizontal scrolling */
-            .view-table th:nth-child(4), .view-table td:nth-child(4), /* Brightness */
-            .view-table th:nth-child(5), .view-table td:nth-child(5)  /* Mode */ {
-                display: none;
+            .history-table th, 
+            .history-table td { 
+                padding: 8px 4px; 
+                border-bottom: 1px solid #222; 
+                text-align: center; /* This centers the content */
+                vertical-align: middle;
             }
-        }
-    </style>
-</head>
-<body>
+            
+            .history-table th:nth-child(2), 
+            .history-table td:nth-child(2) { 
+                text-align: left; 
+                padding-left: 10px;
+            }
 
-    <div class="tabs-nav">
-        <div class="tab active" onclick="switchTab('control', this)">CONTROL</div>
-        <div class="tab" onclick="switchTab('history', this)">HISTORY</div>
-        <div class="tab" onclick="switchTab('settings', this)">SETTINGS</div>
-    </div>
+            .history-table th { 
+                color: #666; 
+                font-weight: bold;
+                text-transform: uppercase;
+                font-size: 0.85em;
+                border-bottom: 1px solid #333; 
+            }
 
-    <div id="dashboard-container">
-        <div id="tab-control" class="tab-content active-content">
-            <div class="card">
-                <div class="id-display" style="font-size: 0.8em; margin-bottom: 10px; color: var(--blynk-blue);">ID: <span id="user-id">00000</span></div>
-                <span class="label">System Status</span>
-                <div id="status-display">CONNECTING...</div>
-                <span id="path-text">---</span>
+            /* Ensure data cells don't override the centering */
+            .history-table td { 
+                padding: 6px 4px;
+                border-bottom: 1px solid #222; 
+                text-align: center; /* Ensure this is set to center */
+            }
+
+            /* Card Extra Info - Hidden by default */
+            .card-details {
+                display: none; /* Hidden */
+                margin-top: 10px;
+                padding-top: 10px;
+                border-top: 1px solid #333;
+                font-size: 0.8em;
+                animation: slideDown 0.2s ease-out;
+            }
+
+            /* Show details when the parent card has the 'active' class */
+            .log-card.active .card-details {
+                display: flex;
+                gap: 15px;
+            }
+
+            @keyframes slideDown {
+                from { opacity: 0; transform: translateY(-5px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+
+            /* Add a small arrow indicator */
+            .expand-icon {
+                transition: transform 0.3s;
+                color: #555;
+                font-size: 0.8em;
+            }
+            .log-card.active .expand-icon {
+                transform: rotate(180deg);
+            }
+
+            /* Styling the scrollbar for the Activity Log list */
+            #log-list::-webkit-scrollbar {
+                width: 6px; /* Makes the bar thinner and sleeker */
+            }
+
+            #log-list::-webkit-scrollbar-track {
+                background: #1a1a1a; /* Very dark background to match the card */
+                border-radius: 10px;
+            }
+
+            #log-list::-webkit-scrollbar-thumb {
+                background: #444; /* Dark grey "handle" */
+                border-radius: 10px;
+                border: 1px solid #1a1a1a; /* Adds a little space around the handle */
+            }
+
+            #log-list::-webkit-scrollbar-thumb:hover {
+                background: #555; /* Slightly lighter when you hover over it */
+            }
+
+            /* For Firefox support */
+            #log-list {
+                scrollbar-width: thin;
+                scrollbar-color: #444 #1a1a1a;
+            }
+
+            /* Mobile Optimizations */
+            @media (max-width: 600px) {
+                body {
+                    padding: 10px; /* Less empty space on the sides */
+                }
                 
-                <div style="margin-top: 15px; font-size: 0.85em; color: #aaa; border-top: 1px solid #383838; padding-top: 10px;">
-                    <i class="fas fa-leaf" style="color: var(--blynk-green);"></i> 
-                    Energy Saving: Light turns OFF after 15 mins of no motion.
-                </div>
-            </div>
+                .card {
+                    padding: 15px; /* Smaller padding inside cards */
+                }
 
-            <div class="card">
-                <span class="label">Power Control</span>
-                <div class="mode-row">
-                    <span>MANUAL</span>
-                    <label class="switch">
-                        <input type="checkbox" id="powerModeToggle" onchange="sendPowerMode(this.checked)">
-                        <span class="slider-switch"></span>
-                    </label>
-                    <span>AUTO</span>
-                </div>
+                .log-card {
+                    padding: 12px;
+                }
 
-                <hr>
+                /* Make buttons and labels easier to tap with thumbs */
+                .btn-menu, .tab-button {
+                    padding: 12px;
+                    font-size: 0.9em;
+                }
 
-                <div id="power-auto-area" style="display:none;">
-                    <div style="font-size: 0.85em; color: var(--blynk-green); padding: 10px; line-height: 1.5;">
-                        <i class="fas fa-robot"></i> <b>Auto Mode Active:</b><br>
-                        Motion detected: Lamp ON<br>
-                        No motion (15min): Lamp OFF
+                /* Hide less important columns in Table View on mobile to prevent horizontal scrolling */
+                .view-table th:nth-child(4), .view-table td:nth-child(4), /* Brightness */
+                .view-table th:nth-child(5), .view-table td:nth-child(5)  /* Mode */ {
+                    display: none;
+                }
+            }
+
+            /* --- Add this for the Table Slider --- */
+            /* This makes the container the one that handles both V and H scrolling */
+            .table-scroll-container {
+                overflow-x: auto;
+                overflow-y: auto;
+                max-height: 320px; /* Made slightly smaller */
+                width: 100%;
+                border-radius: 8px;
+                background: #222;
+                position: relative;
+            }
+
+            /* Ensure the main list doesn't double-scroll */
+            .view-table {
+                overflow: hidden !important; 
+            }
+
+
+            /* Custom Horizontal Scrollbar */
+            .table-scroll-container::-webkit-scrollbar {
+                height: 8px; 
+            }
+            .table-scroll-container::-webkit-scrollbar-track {
+                background: #1a1a1a;
+            }
+            .table-scroll-container::-webkit-scrollbar-thumb {
+                background: var(--blynk-blue);
+                border-radius: 10px;
+            }
+
+            /* Pulsing Swipe Hint */
+            .scroll-hint {
+                text-align: right;
+                font-size: 0.7em;
+                color: var(--blynk-blue);
+                margin-bottom: 5px;
+                animation: pulse 2s infinite;
+            }
+
+            @keyframes pulse {
+                0% { opacity: 0.4; }
+                50% { opacity: 1; }
+                100% { opacity: 0.4; }
+            }
+        </style>
+    </head>
+    <body>
+
+        <div class="tabs-nav">
+            <div class="tab active" onclick="switchTab('control', this)">CONTROL</div>
+            <div class="tab" onclick="switchTab('history', this)">HISTORY</div>
+            <div class="tab" onclick="switchTab('settings', this)">SETTINGS</div>
+        </div>
+
+        <div id="dashboard-container">
+            <div id="tab-control" class="tab-content active-content">
+                <div class="card">
+                    <div class="id-display" style="font-size: 0.8em; margin-bottom: 10px; color: var(--blynk-blue);">ID: <span id="user-id">00000</span></div>
+                    <span class="label">System Status</span>
+                    <div id="status-display">CONNECTING...</div>
+                    <span id="path-text">---</span>
+                    
+                    <div style="margin-top: 15px; font-size: 0.85em; color: #aaa; border-top: 1px solid #383838; padding-top: 10px;">
+                        <i class="fas fa-leaf" style="color: var(--blynk-green);"></i> 
+                        Energy Saving: Light turns OFF after 15 mins of no motion.
                     </div>
                 </div>
 
-                <div id="power-manual-area">
-                    <span class="label" style="font-size: 0.7em;">Manual Override</span>
-                    <label class="switch">
-                        <input type="checkbox" id="powerToggle" onchange="sendPower(this.checked)">
-                        <span class="slider-switch"></span>
-                    </label>
-                    <div style="font-size: 0.75em; margin-top: 10px; color: #777;">
-                        Note: Still turns OFF after 15 minutes of no motion.
+                <div class="card">
+                    <span class="label">Power Control</span>
+                    <div class="mode-row">
+                        <span>MANUAL</span>
+                        <label class="switch">
+                            <input type="checkbox" id="powerModeToggle" onchange="sendPowerMode(this.checked)">
+                            <span class="slider-switch"></span>
+                        </label>
+                        <span>AUTO</span>
+                    </div>
+
+                    <hr>
+
+                    <div id="power-auto-area" style="display:none;">
+                        <div style="font-size: 0.85em; color: var(--blynk-green); padding: 10px; line-height: 1.5;">
+                            <i class="fas fa-robot"></i> <b>Auto Mode Active:</b><br>
+                            Motion detected: Lamp ON<br>
+                            No motion (15min): Lamp OFF
+                        </div>
+                    </div>
+
+                    <div id="power-manual-area">
+                        <span class="label" style="font-size: 0.7em;">Manual Override</span>
+                        <label class="switch">
+                            <input type="checkbox" id="powerToggle" onchange="sendPower(this.checked)">
+                            <span class="slider-switch"></span>
+                        </label>
+                        <div style="font-size: 0.75em; margin-top: 10px; color: #777;">
+                            Note: Still turns OFF after 15 minutes of no motion.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <span class="label">Brightness Control</span>
+                    <div class="mode-row">
+                        <span>MANUAL</span>
+                        <label class="switch">
+                            <input type="checkbox" id="autoToggle" onchange="sendMode(this.checked)">
+                            <span class="slider-switch"></span>
+                        </label>
+                        <span>AUTO</span>
+                    </div>
+
+                    <hr>
+
+                    <div id="auto-area" style="display:none;">
+                        <span class="label">Surrounding Light</span>
+                        <div class="data-val" id="ldr-val">0</div>
+                        <span class="label">Auto Output</span>
+                        <div class="data-val" id="auto-bright-val">0%</div>
+                    </div>
+
+                    <div id="manual-area">
+                        <span class="label">Manual Dimmer</span>
+                        <input type="range" min="0" max="255" id="brightSlider" oninput="sendSlider(this.value)">
+                        <div class="data-val" id="manual-bright-val">0%</div>
                     </div>
                 </div>
             </div>
 
-            <div class="card">
-                <span class="label">Brightness Control</span>
-                <div class="mode-row">
-                    <span>MANUAL</span>
-                    <label class="switch">
-                        <input type="checkbox" id="autoToggle" onchange="sendMode(this.checked)">
-                        <span class="slider-switch"></span>
-                    </label>
-                    <span>AUTO</span>
+            <div id="tab-history" class="tab-content">
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <span class="label" style="margin:0;">Activity Log</span>
+                        <div style="background: #333; padding: 5px; border-radius: 8px; display: flex; gap: 5px;">
+                            <i class="fas fa-th-large" id="view-grid" onclick="changeView('grid')" style="cursor:pointer; padding: 5px; color: var(--blynk-blue);"></i>
+                            <i class="fas fa-list" id="view-table" onclick="changeView('table')" style="cursor:pointer; padding: 5px; color: #666;"></i>
+                        </div>
+                    </div>
+
+                    <div id="log-list" class="view-grid" style="max-height: 400px; overflow-y: auto;">
+                        <div style="padding: 20px; color: #666;">No recent activity.</div>
+                    </div>
+
+                    <div style="margin-top: 15px; padding: 10px; border-top: 1px solid #333; font-size: 0.75em; color: #777; line-height: 1.4;">
+                        <i class="fas fa-info-circle" style="color: var(--blynk-blue); margin-right: 5px;"></i>
+                        Showing the last <b>20 events</b>. For a full historical report or specific data requests, please contact 
+                        <span style="color: var(--blynk-blue); font-weight: bold; cursor: pointer;">HEP (Student Affairs)</span>.
+                    </div>
+                    
+                    <button class="btn-menu" onclick="fetchLogs()" style="justify-content:center; margin-top:10px; font-size: 0.8em; color: var(--blynk-blue); background: transparent; border: 1px solid #444;">
+                        <i class="fas fa-sync-alt"></i> Refresh History
+                    </button>
                 </div>
+            </div>
 
-                <hr>
+            <div id="tab-settings" class="tab-content">
+                <div class="card">
+                    <div style="margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #383838;">
+                        <i class="fas fa-user-circle" style="font-size: 3em; color: var(--blynk-blue); margin-bottom: 10px;"></i>
+                        <div style="font-size: 1.1em; font-weight: bold;">
+                            <span style="color: #888; font-weight: normal;">User:</span> 
+                            <span id="settings-matric">---</span>
+                        </div>
+                    </div>
 
-                <div id="auto-area" style="display:none;">
-                    <span class="label">Surrounding Light</span>
-                    <div class="data-val" id="ldr-val">0</div>
-                    <span class="label">Auto Output</span>
-                    <div class="data-val" id="auto-bright-val">0%</div>
-                </div>
-
-                <div id="manual-area">
-                    <span class="label">Manual Dimmer</span>
-                    <input type="range" min="0" max="255" id="brightSlider" oninput="sendSlider(this.value)">
-                    <div class="data-val" id="manual-bright-val">0%</div>
+                    <span class="label">Device Management</span>
+                    <button class="btn-menu" onclick="reconfigureLamp()"><i class="fas fa-map-marker-alt"></i> Relocate Lamp</button>
+                    <button class="btn-menu" onclick="logout()" style="color:var(--blynk-red);"><i class="fas fa-sign-out-alt"></i> Logout</button>
                 </div>
             </div>
         </div>
 
-        <div id="tab-history" class="tab-content">
-            <div class="card">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <span class="label" style="margin:0;">Activity Log</span>
-                    <div style="background: #333; padding: 5px; border-radius: 8px; display: flex; gap: 5px;">
-                        <i class="fas fa-th-large" id="view-grid" onclick="changeView('grid')" style="cursor:pointer; padding: 5px; color: var(--blynk-blue);"></i>
-                        <i class="fas fa-list" id="view-table" onclick="changeView('table')" style="cursor:pointer; padding: 5px; color: #666;"></i>
-                    </div>
-                </div>
-
-                <div id="log-list" class="view-grid" style="max-height: 400px; overflow-y: auto;">
-                    <div style="padding: 20px; color: #666;">No recent activity.</div>
-                </div>
-
-                <div style="margin-top: 15px; padding: 10px; border-top: 1px solid #333; font-size: 0.75em; color: #777; line-height: 1.4;">
-                    <i class="fas fa-info-circle" style="color: var(--blynk-blue); margin-right: 5px;"></i>
-                    Showing the last <b>20 events</b>. For a full historical report or specific data requests, please contact 
-                    <span style="color: var(--blynk-blue); font-weight: bold; cursor: pointer;">HEP (Student Affairs)</span>.
-                </div>
-                
-                <button class="btn-menu" onclick="fetchLogs()" style="justify-content:center; margin-top:10px; font-size: 0.8em; color: var(--blynk-blue); background: transparent; border: 1px solid #444;">
-                    <i class="fas fa-sync-alt"></i> Refresh History
-                </button>
-            </div>
-        </div>
-
-        <div id="tab-settings" class="tab-content">
-            <div class="card">
-                <div style="margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #383838;">
-                    <i class="fas fa-user-circle" style="font-size: 3em; color: var(--blynk-blue); margin-bottom: 10px;"></i>
-                    <div style="font-size: 1.1em; font-weight: bold;">
-                        <span style="color: #888; font-weight: normal;">User:</span> 
-                        <span id="settings-matric">---</span>
-                    </div>
-                </div>
-
-                <span class="label">Device Management</span>
-                <button class="btn-menu" onclick="reconfigureLamp()"><i class="fas fa-map-marker-alt"></i> Relocate Lamp</button>
-                <button class="btn-menu" onclick="logout()" style="color:var(--blynk-red);"><i class="fas fa-sign-out-alt"></i> Logout</button>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // --- 1. FIREBASE CONFIG ---
-        const firebaseConfig = {
-            apiKey: "AIzaSyDUmDSsJguZf1LIwp8t9UW-5wIx0mBTGgg",
-            databaseURL: "https://smart-desk-lamp-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "smart-desk-lamp",
-            storageBucket: "smart-desk-lamp.firebasestorage.app",
-            messagingSenderId: "923022444862",
-            appId: "1:923022444862:web:7fb9694064a2b0faac046f",
-        };
-
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-
-        const lampPath = localStorage.getItem("lampPath");
-        const matric = localStorage.getItem("currentMatric");
-        const googleScriptURL = "https://script.google.com/macros/s/AKfycbw1Bxi8I1894zczPAvDoK67gvcHGsyXRpZqehuHVippSKnEnLgcghkbaj7LFqiD2HLO1Q/exec";
-        
-        let currentView = 'grid'; // Default view state
-
-        // --- 2. INITIALIZATION ---
-        if (!matric) {
-            window.location.href = "index.html";
-        } else if (!lampPath) {
-            window.location.href = "register.html";
-        } else {
-            window.onload = function() {
-                document.getElementById("user-id").innerText = matric;
-                document.getElementById("settings-matric").innerText = matric;
-                document.getElementById("path-text").innerText = lampPath;
-                initializeListeners();
+        <script>
+            // --- 1. FIREBASE CONFIG ---
+            const firebaseConfig = {
+                apiKey: "AIzaSyDUmDSsJguZf1LIwp8t9UW-5wIx0mBTGgg",
+                databaseURL: "https://smart-desk-lamp-default-rtdb.asia-southeast1.firebasedatabase.app",
+                projectId: "smart-desk-lamp",
+                storageBucket: "smart-desk-lamp.firebasestorage.app",
+                messagingSenderId: "923022444862",
+                appId: "1:923022444862:web:7fb9694064a2b0faac046f",
             };
-        }
 
-        // --- 3. DASHBOARD NAVIGATION & VIEW ---
-        function switchTab(tabName, element) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            element.classList.add('active');
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active-content'));
-            document.getElementById('tab-' + tabName).classList.add('active-content');
-            if(tabName === 'history') fetchLogs();
-        }
+            firebase.initializeApp(firebaseConfig);
+            const db = firebase.database();
 
-        function changeView(view) {
-            currentView = view;
-            const list = document.getElementById("log-list");
-            document.getElementById("view-grid").style.color = (view === 'grid') ? "var(--blynk-blue)" : "#666";
-            document.getElementById("view-table").style.color = (view === 'table') ? "var(--blynk-blue)" : "#666";
-            list.className = (view === 'grid') ? "view-grid" : "view-table";
-            fetchLogs(); 
-        }
+            const lampPath = localStorage.getItem("lampPath");
+            const matric = localStorage.getItem("currentMatric");
+            const googleScriptURL = "https://script.google.com/macros/s/AKfycbxJx_8T9ouTU-BRpxAkKxZ_xiWoKvUI9QnJ__WTL2VqUfCsTxi7gpy8qn66KWtJBauj7g/exec";
+            
+            let currentView = 'grid'; // Default view state
 
-        function toggleCard(element) {
-            element.classList.toggle('active');
-        }
+            // --- 2. INITIALIZATION ---
+            if (!matric) {
+                window.location.href = "index.html";
+            } else if (!lampPath) {
+                window.location.href = "register.html";
+            } else {
+                window.onload = function() {
+                    document.getElementById("user-id").innerText = matric;
+                    document.getElementById("settings-matric").innerText = matric;
+                    document.getElementById("path-text").innerText = lampPath;
+                    initializeListeners();
+                };
+            }
 
-        // --- 4. DATA FETCHING (HISTORY) ---
-        // --- 4. DATA FETCHING (HISTORY) - UPDATED FOR 8 COLUMNS ---
-        async function fetchLogs() {
+            // --- 3. DASHBOARD NAVIGATION & VIEW ---
+            function switchTab(tabName, element) {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                element.classList.add('active');
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active-content'));
+                document.getElementById('tab-' + tabName).classList.add('active-content');
+                if(tabName === 'history') fetchLogs();
+            }
+
+            function changeView(view) {
+                currentView = view;
+                const list = document.getElementById("log-list");
+                document.getElementById("view-grid").style.color = (view === 'grid') ? "var(--blynk-blue)" : "#666";
+                document.getElementById("view-table").style.color = (view === 'table') ? "var(--blynk-blue)" : "#666";
+                list.className = (view === 'grid') ? "view-grid" : "view-table";
+                fetchLogs(); 
+            }
+
+            function toggleCard(element) {
+                element.classList.toggle('active');
+            }
+
+            // --- 4. DATA FETCHING (HISTORY) ---
+            async function fetchLogs() {
             const logList = document.getElementById("log-list");
             logList.innerHTML = '<div style="padding:20px; grid-column: span 2;"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
             
             try {
                 const response = await fetch(googleScriptURL + "?action=read");
                 const logs = await response.json();
-                
-                // Filter junk and reverse to show latest first
                 const displayLimit = logs.filter(l => l.matric !== "N/A").slice(-20).reverse();
                 
                 if (currentView === 'grid') {
                     logList.innerHTML = displayLimit.map(log => {
-                        let brightDisplay = log.bright;
-                        // Handle potential decimal values from old data
-                        if (!brightDisplay.toString().includes('%')) {
-                            brightDisplay = Math.round(parseFloat(brightDisplay)) + "%";
-                        }
-                        
                         const isPowerOn = log.power === 'ON';
-                        const powerIconColor = isPowerOn ? 'var(--blynk-green)' : '#888';
-
                         return `
-                            <div class="log-card ${isPowerOn ? '' : 'off'}" onclick="toggleCard(this)" style="cursor: pointer;">
+                            <div class="log-card" onclick="toggleCard(this)" style="cursor: pointer; border-left-color: ${isPowerOn ? 'var(--blynk-green)' : 'var(--blynk-red)'}">
                                 <div style="display: flex; justify-content: space-between; align-items: start;">
                                     <div>
                                         <div style="font-weight: bold; color: #fff; font-size: 0.95em;">
@@ -487,24 +548,30 @@
                                         </div>
                                         <div style="font-size: 0.7em; color: #888; margin-top: 2px;">${log.time}</div>
                                     </div>
-                                    <span style="font-size: 0.65em; background: #333; padding: 2px 6px; border-radius: 4px; color: var(--blynk-blue);">
-                                        ID: ${log.matric}
-                                    </span>
+                                    <span style="font-size: 0.65em; background: #333; padding: 2px 6px; border-radius: 4px; color: var(--blynk-blue);">ID: ${log.matric}</span>
                                 </div>
-                                <div class="card-details">
-                                    <span><i class="fas fa-power-off" style="color: ${powerIconColor};"></i> Status: <b>${log.power}</b></span>
-                                    <span><i class="fas fa-lightbulb" style="color: #fff;"></i> Bright: <b>${brightDisplay}</b></span>
-                                    <div style="margin-top:5px; color:#aaa;">
-                                        <span><i class="fas fa-bolt" style="font-size:0.9em;"></i> P-Mode: <b>${log.pMode}</b></span> | 
-                                        <span><i class="fas fa-adjust" style="font-size:0.9em;"></i> B-Mode: <b>${log.bMode}</b></span>
+                                    <div class="card-details">
+                                        <div style="display: flex; flex-direction: column; width: 100%; gap: 5px; text-align: left;">
+                                            <div><i class="fas fa-power-off"></i> Status: <b>${log.power}</b></div>
+                                            <div><i class="fas fa-lightbulb"></i> Brightness: <b>${Math.round(log.bright * 100)}%</b></div>
+                                            
+                                            <hr style="margin: 5px 0; border-top: 1px solid #333;">
+                                            
+                                            <div style="color:#aaa; font-size:0.9em;">
+                                                <i class="fas fa-toggle-on"></i> Power Mode: <b>${log.pMode}</b>
+                                            </div>
+                                            <div style="color:#aaa; font-size:0.9em;">
+                                                <i class="fas fa-magic"></i> Brightness Mode: <b>${log.bMode}</b>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
                             </div>`;
                     }).join('');
                 } else {
-                    // TABLE VIEW
+                    // TABLE VIEW WITH SCROLL INDICATOR
                     logList.innerHTML = `
-                        <div style="overflow-x: auto;">
+                        <div class="scroll-hint">Swipe right for more <i class="fas fa-arrow-right"></i></div>
+                        <div class="table-scroll-container">
                             <table class="history-table">
                                 <thead>
                                     <tr>
@@ -518,103 +585,98 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    ${displayLimit.map(log => {
-                                        let b = log.bright;
-                                        if (!b.toString().includes('%')) b = Math.round(parseFloat(b)) + "%";
-                                        return `
-                                            <tr>
-                                                <td style="color: #888;">${log.time}</td>
-                                                <td style="font-weight:bold; color: #fff;">${log.event}</td>
-                                                <td style="color: ${log.power === 'ON' ? 'var(--blynk-green)' : 'var(--blynk-red)'}; font-weight: bold;">${log.power}</td>
-                                                <td>${b}</td>
-                                                <td>${log.pMode}</td>
-                                                <td>${log.bMode}</td>
-                                                <td style="color: var(--blynk-blue); font-weight: bold;">${log.matric}</td>
-                                            </tr>`;
-                                    }).join('')}
+                                    ${displayLimit.map(log => `
+                                        <tr>
+                                            <td style="color: #888;">${log.time}</td>
+                                            <td style="font-weight:bold; color: #fff;">${log.event}</td>
+                                            <td style="color: ${log.power === 'ON' ? 'var(--blynk-green)' : 'var(--blynk-red)'}; font-weight: bold;">${log.power}</td>
+                                            <td>${Math.round(log.bright * 100)}%</td>
+                                            <td>${log.pMode}</td>
+                                            <td>${log.bMode}</td>
+                                            <td style="color: var(--blynk-blue); font-weight: bold;">${log.matric}</td>
+                                        </tr>`).join('')}
                                 </tbody>
                             </table>
                         </div>`;
                 }
             } catch (e) {
-                console.error(e);
-                logList.innerHTML = '<div style="padding:20px; grid-column: span 2; color:var(--blynk-red);">Error loading data.</div>';
+                logList.innerHTML = '<div style="padding:20px; color:var(--blynk-red);">Error loading data.</div>';
             }
         }
 
-        // --- 5. REAL-TIME LISTENERS ---
-        function initializeListeners() {
-            // Listen to Device Controls
-            db.ref(lampPath + "/Control").on("value", (snapshot) => {
-                const ctrl = snapshot.val();
-                if (!ctrl) return;
+            // --- 5. REAL-TIME LISTENERS ---
+            function initializeListeners() {
+                // Listen to Device Controls
+                db.ref(lampPath + "/Control").on("value", (snapshot) => {
+                    const ctrl = snapshot.val();
+                    if (!ctrl) return;
 
-                const isPowerAuto = ctrl.powerAuto || false;
-                document.getElementById("powerModeToggle").checked = isPowerAuto;
-                document.getElementById("powerToggle").checked = ctrl.systemPower;
+                    const isPowerAuto = ctrl.powerAuto || false;
+                    document.getElementById("powerModeToggle").checked = isPowerAuto;
+                    document.getElementById("powerToggle").checked = ctrl.systemPower;
 
-                document.getElementById("power-auto-area").style.display = isPowerAuto ? "block" : "none";
-                document.getElementById("power-manual-area").style.display = isPowerAuto ? "none" : "block";
+                    document.getElementById("power-auto-area").style.display = isPowerAuto ? "block" : "none";
+                    document.getElementById("power-manual-area").style.display = isPowerAuto ? "none" : "block";
 
-                document.getElementById("autoToggle").checked = ctrl.autoDim;
-                document.getElementById("auto-area").style.display = ctrl.autoDim ? "block" : "none";
-                document.getElementById("manual-area").style.display = ctrl.autoDim ? "none" : "block";
+                    document.getElementById("autoToggle").checked = ctrl.autoDim;
+                    document.getElementById("auto-area").style.display = ctrl.autoDim ? "block" : "none";
+                    document.getElementById("manual-area").style.display = ctrl.autoDim ? "none" : "block";
 
-                document.getElementById("brightSlider").value = ctrl.manualBrightness;
-                document.getElementById("manual-bright-val").innerText = Math.round((ctrl.manualBrightness / 255) * 100) + "%";
-            });
+                    document.getElementById("brightSlider").value = ctrl.manualBrightness;
+                    document.getElementById("manual-bright-val").innerText = Math.round((ctrl.manualBrightness / 255) * 100) + "%";
+                });
 
-            // Listen to Live Sensor Data
-            db.ref(lampPath + "/Live_Data").on("value", (snapshot) => {
-                const data = snapshot.val();
-                if (!data) return;
-                
-                document.getElementById("ldr-val").innerText = data.LDR_Raw;
-                document.getElementById("auto-bright-val").innerText = Math.round((data.Brightness / 255) * 100) + "%";
-                
-                const statusBox = document.getElementById("status-display");
-                const currentStatus = (data.Status || "UNKNOWN").toUpperCase();
-                statusBox.innerText = currentStatus;
+                // Listen to Live Sensor Data
+                db.ref(lampPath + "/Live_Data").on("value", (snapshot) => {
+                    const data = snapshot.val();
+                    if (!data) return;
+                    
+                    document.getElementById("ldr-val").innerText = data.LDR_Raw;
+                    document.getElementById("auto-bright-val").innerText = Math.round((data.Brightness / 255) * 100) + "%";
+                    
+                    const statusBox = document.getElementById("status-display");
+                    const currentStatus = (data.Status || "UNKNOWN").toUpperCase();
+                    statusBox.innerText = currentStatus;
 
-                if (currentStatus.includes("OFF")) {
-                    statusBox.style.color = "var(--blynk-red)"; 
-                    statusBox.style.borderLeftColor = "var(--blynk-red)";
-                } else if (currentStatus.includes("ON:")) { 
-                    statusBox.style.color = "var(--blynk-green)"; 
-                    statusBox.style.borderLeftColor = "var(--blynk-green)";
-                } else {
-                    statusBox.style.color = "#888"; 
-                    statusBox.style.borderLeftColor = "#888";
+                    if (currentStatus.includes("OFF")) {
+                        statusBox.style.color = "var(--blynk-red)"; 
+                        statusBox.style.borderLeftColor = "var(--blynk-red)";
+                    } else if (currentStatus.includes("ON:")) { 
+                        statusBox.style.color = "var(--blynk-green)"; 
+                        statusBox.style.borderLeftColor = "var(--blynk-green)";
+                    } else {
+                        statusBox.style.color = "#888"; 
+                        statusBox.style.borderLeftColor = "#888";
+                    }
+                });
+            }
+
+            // --- 6. OUTGOING COMMANDS ---
+            function sendPower(state) {
+                db.ref(lampPath + "/Control").update({ 
+                    systemPower: state, 
+                    lastOffReason: state ? "ACTIVE" : "OFF: BY USER" 
+                });
+            }
+            function sendPowerMode(state) {
+                db.ref(lampPath + "/Control").update({ powerAuto: state });
+            }
+            function sendMode(state) {
+                db.ref(lampPath + "/Control").update({ autoDim: state });
+            }
+            function sendSlider(val) {
+                document.getElementById("manual-bright-val").innerText = Math.round((val / 255) * 100) + "%";
+                db.ref(lampPath + "/Control").update({ manualBrightness: parseInt(val) });
+            }
+            function reconfigureLamp() { 
+                if(confirm("Change lamp location settings?")) window.location.href = "register.html?mode=edit"; 
+            }
+            function logout() {
+                if (confirm("Are you sure you want to log out?")) {
+                    localStorage.removeItem("currentMatric"); 
+                    window.location.href = "index.html";
                 }
-            });
-        }
-
-        // --- 6. OUTGOING COMMANDS ---
-        function sendPower(state) {
-            db.ref(lampPath + "/Control").update({ 
-                systemPower: state, 
-                lastOffReason: state ? "ACTIVE" : "OFF: BY USER" 
-            });
-        }
-        function sendPowerMode(state) {
-            db.ref(lampPath + "/Control").update({ powerAuto: state });
-        }
-        function sendMode(state) {
-            db.ref(lampPath + "/Control").update({ autoDim: state });
-        }
-        function sendSlider(val) {
-            document.getElementById("manual-bright-val").innerText = Math.round((val / 255) * 100) + "%";
-            db.ref(lampPath + "/Control").update({ manualBrightness: parseInt(val) });
-        }
-        function reconfigureLamp() { 
-            if(confirm("Change lamp location settings?")) window.location.href = "register.html?mode=edit"; 
-        }
-        function logout() {
-            if (confirm("Are you sure you want to log out?")) {
-                localStorage.removeItem("currentMatric"); 
-                window.location.href = "index.html";
             }
-        }
-    </script>
-</body>
-</html>
+        </script>
+    </body>
+    </html>
