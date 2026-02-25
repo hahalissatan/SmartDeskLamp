@@ -493,11 +493,6 @@
                 document.getElementById("ldr-val").innerText = data.LDR_Raw;
                 document.getElementById("auto-bright-val").innerText = Math.round((data.Brightness / 255) * 100) + "%";
                 
-                // Update Status Display from ESP32 string
-                const statusBox = document.getElementById("status-display");
-                const currentStatus = data.Status || "UNKNOWN"; 
-                statusBox.innerText = currentStatus;
-
                 // Change colors based on status string
                 // Updated Color logic: Check for OFF first to avoid "motiON" confusion
                 // Update Status Display from ESP32 string
