@@ -500,14 +500,23 @@
 
                 // Change colors based on status string
                 // Updated Color logic: Check for OFF first to avoid "motiON" confusion
+                // Update Status Display from ESP32 string
+                const statusBox = document.getElementById("status-display");
+                const currentStatus = (data.Status || "UNKNOWN").toUpperCase(); // Convert to Uppercase to be safe
+                statusBox.innerText = currentStatus;
+
+                // FIX: Specific check to prevent "motiON" from triggering green
                 if (currentStatus.includes("OFF")) {
+                    // If the string has "OFF" anywhere, it's RED
                     statusBox.style.color = "var(--blynk-red)"; 
                     statusBox.style.borderLeftColor = "var(--blynk-red)";
-                } else if (currentStatus.includes("ON")) {
+                } else if (currentStatus.includes("ON:")) { 
+                    // Adding the colon ":" ensures we match "ON: MOTION" 
+                    // but NOT the "ON" inside the word "MOTION"
                     statusBox.style.color = "var(--blynk-green)"; 
                     statusBox.style.borderLeftColor = "var(--blynk-green)";
                 } else {
-                    statusBox.style.color = "#888"; // Grey for Unknown/Connecting
+                    statusBox.style.color = "#888"; 
                     statusBox.style.borderLeftColor = "#888";
                 }
             });
