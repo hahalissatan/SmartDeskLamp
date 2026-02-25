@@ -623,7 +623,8 @@
                     document.getElementById("manual-area").style.display = ctrl.autoDim ? "none" : "block";
 
                     document.getElementById("brightSlider").value = ctrl.manualBrightness;
-                    document.getElementById("manual-bright-val").innerText = Math.round((ctrl.manualBrightness / 255) * 100) + "%";
+                    
+                    document.getElementById("auto-bright-val").innerText = data.Brightness + "%";
                 });
 
                 // Listen to Live Sensor Data
