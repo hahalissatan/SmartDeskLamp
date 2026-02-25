@@ -459,33 +459,46 @@
         }
 
         function initializeListeners() {
-            // A. Listen to Controls (So the toggles and sliders move automatically)
+            // --- FIX 1: Listen to Control (Syncs Toggles and Mode Visibility) ---
             db.ref(lampPath + "/Control").on("value", (snapshot) => {
                 const ctrl = snapshot.val();
                 if (!ctrl) return;
+
+                // Sync the Master Power toggle
                 document.getElementById("powerToggle").checked = ctrl.systemPower;
+
+                // Sync the Auto/Manual toggle
                 document.getElementById("autoToggle").checked = ctrl.autoDim;
-                document.getElementById("auto-area").style.display = ctrl.autoDim ? "block" : "none";
-                document.getElementById("manual-area").style.display = ctrl.autoDim ? "none" : "block";
+
+                // FIX: This part makes the Auto/Manual areas hide and show correctly
+                if (ctrl.autoDim) {
+                    document.getElementById("auto-area").style.display = "block";
+                    document.getElementById("manual-area").style.display = "none";
+                } else {
+                    document.getElementById("auto-area").style.display = "none";
+                    document.getElementById("manual-area").style.display = "block";
+                }
+
+                // Update Slider position
                 document.getElementById("brightSlider").value = ctrl.manualBrightness;
                 document.getElementById("manual-bright-val").innerText = Math.round((ctrl.manualBrightness / 255) * 100) + "%";
             });
 
-            // B. Listen to Live Status and Sensors (The 4 Statuses Fix)
+            // --- FIX 2: Listen to Live Status (The 4 Statuses) ---
             db.ref(lampPath + "/Live_Data").on("value", (snapshot) => {
                 const data = snapshot.val();
                 if (!data) return;
                 
-                // 1. Update sensor values
+                // Update sensor values
                 document.getElementById("ldr-val").innerText = data.LDR_Raw;
                 document.getElementById("auto-bright-val").innerText = Math.round((data.Brightness / 255) * 100) + "%";
                 
-                // 2. Update Status Display using the "Status" string from your ESP32
+                // Update Status Display from ESP32 string
                 const statusBox = document.getElementById("status-display");
                 const currentStatus = data.Status || "UNKNOWN"; 
                 statusBox.innerText = currentStatus;
 
-                // Color logic: Green for ON, Red for OFF
+                // Change colors based on status string
                 if (currentStatus.includes("ON")) {
                     statusBox.style.color = "var(--blynk-green)"; 
                     statusBox.style.borderLeftColor = "var(--blynk-green)";
