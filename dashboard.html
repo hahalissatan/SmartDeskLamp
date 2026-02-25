@@ -622,7 +622,15 @@
                     document.getElementById("auto-area").style.display = ctrl.autoDim ? "block" : "none";
                     document.getElementById("manual-area").style.display = ctrl.autoDim ? "none" : "block";
 
-                    document.getElementById("brightSlider").value = ctrl.manualBrightness;
+                    // Update Brightness Sliders and Labels using 'ctrl'
+                    const brightVal = ctrl.manualBrightness || 0;
+                    document.getElementById("brightSlider").value = brightVal;
+                    
+                    // Calculate percentage: (Value / 255) * 100
+                    const percent = Math.round((brightVal / 255) * 100) + "%";
+                    document.getElementById("manual-bright-val").innerText = percent;
+                    
+                    // This ensures the Auto-area display also stays updated
                     document.getElementById("auto-bright-val").innerText = data.Brightness + "%";
                 });
 
