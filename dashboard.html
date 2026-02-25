@@ -499,12 +499,16 @@
                 statusBox.innerText = currentStatus;
 
                 // Change colors based on status string
-                if (currentStatus.includes("ON")) {
+                // Updated Color logic: Check for OFF first to avoid "motiON" confusion
+                if (currentStatus.includes("OFF")) {
+                    statusBox.style.color = "var(--blynk-red)"; 
+                    statusBox.style.borderLeftColor = "var(--blynk-red)";
+                } else if (currentStatus.includes("ON")) {
                     statusBox.style.color = "var(--blynk-green)"; 
                     statusBox.style.borderLeftColor = "var(--blynk-green)";
                 } else {
-                    statusBox.style.color = "var(--blynk-red)"; 
-                    statusBox.style.borderLeftColor = "var(--blynk-red)";
+                    statusBox.style.color = "#888"; // Grey for Unknown/Connecting
+                    statusBox.style.borderLeftColor = "#888";
                 }
             });
         }
