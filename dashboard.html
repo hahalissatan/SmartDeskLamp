@@ -630,8 +630,6 @@
                     const percent = Math.round((brightVal / 255) * 100) + "%";
                     document.getElementById("manual-bright-val").innerText = percent;
                     
-                    // This ensures the Auto-area display also stays updated
-                    document.getElementById("auto-bright-val").innerText = data.Brightness + "%";
                 });
 
                 // Listen to Live Sensor Data
@@ -640,7 +638,7 @@
                     if (!data) return;
                     
                     document.getElementById("ldr-val").innerText = data.LDR_Raw;
-                    document.getElementById("auto-bright-val").innerText = Math.round((data.Brightness / 255) * 100) + "%";
+                    document.getElementById("auto-bright-val").innerText = data.Brightness + "%";
                     
                     const statusBox = document.getElementById("status-display");
                     const currentStatus = (data.Status || "UNKNOWN").toUpperCase();
