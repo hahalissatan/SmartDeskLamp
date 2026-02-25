@@ -295,11 +295,36 @@
             </div>
 
             <div class="card">
-                <span class="label">Master Power</span>
-                <label class="switch">
-                    <input type="checkbox" id="powerToggle" onchange="sendPower(this.checked)">
-                    <span class="slider-switch"></span>
-                </label>
+                <span class="label">Power Control</span>
+                <div class="mode-row">
+                    <span>MANUAL</span>
+                    <label class="switch">
+                        <input type="checkbox" id="powerModeToggle" onchange="sendPowerMode(this.checked)">
+                        <span class="slider-switch"></span>
+                    </label>
+                    <span>AUTO</span>
+                </div>
+
+                <hr>
+
+                <div id="power-auto-area" style="display:none;">
+                    <div style="font-size: 0.85em; color: var(--blynk-green); padding: 10px; line-height: 1.5;">
+                        <i class="fas fa-robot"></i> <b>Auto Mode Active:</b><br>
+                        Motion detected: Lamp ON<br>
+                        No motion (20s): Lamp OFF
+                    </div>
+                </div>
+
+                <div id="power-manual-area">
+                    <span class="label" style="font-size: 0.7em;">Manual Override</span>
+                    <label class="switch">
+                        <input type="checkbox" id="powerToggle" onchange="sendPower(this.checked)">
+                        <span class="slider-switch"></span>
+                    </label>
+                    <div style="font-size: 0.75em; margin-top: 10px; color: #777;">
+                        Note: Still turns OFF after 20s of no motion.
+                    </div>
+                </div>
             </div>
 
             <div class="card">
@@ -390,6 +415,8 @@
         const lampPath = localStorage.getItem("lampPath");
         const matric = localStorage.getItem("currentMatric");
         const googleScriptURL = "https://script.google.com/macros/s/AKfycbw1Bxi8I1894zczPAvDoK67gvcHGsyXRpZqehuHVippSKnEnLgcghkbaj7LFqiD2HLO1Q/exec";
+        
+        let currentView = 'grid'; // Default view state
 
         // --- 2. INITIALIZATION ---
         if (!matric) {
@@ -398,16 +425,14 @@
             window.location.href = "register.html";
         } else {
             window.onload = function() {
-                // Update BOTH matric displays
                 document.getElementById("user-id").innerText = matric;
                 document.getElementById("settings-matric").innerText = matric;
-                
                 document.getElementById("path-text").innerText = lampPath;
                 initializeListeners();
             };
         }
 
-        // --- 3. DASHBOARD FUNCTIONS ---
+        // --- 3. DASHBOARD NAVIGATION & VIEW ---
         function switchTab(tabName, element) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             element.classList.add('active');
@@ -416,127 +441,20 @@
             if(tabName === 'history') fetchLogs();
         }
 
-        async function fetchLogs() {
-            const logList = document.getElementById("log-list");
-            logList.innerHTML = '<div style="padding:20px;"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
-            
-            try {
-                const response = await fetch(googleScriptURL + "?action=read");
-                const logs = await response.json();
-                logList.innerHTML = ""; 
-
-                // Change -10 to -20 or more if you want to see a longer history
-                const displayLimit = logs.slice(-20).reverse(); 
-
-                displayLimit.forEach(log => {
-                    // Determine color and icon based on the Event or Power status
-                    const isOff = log.event.includes("OFF") || log.power === "OFF";
-                    const color = isOff ? "var(--blynk-red)" : "var(--blynk-green)";
-                    
-                    // Logic to pick the right icon
-                    let icon = "fa-info-circle"; // Default icon
-                    if (log.event.includes("Power")) icon = "fa-power-off";
-                    if (log.event.includes("Mode") || log.event.includes("Dimmer")) icon = "fa-sliders-h";
-                    if (log.event.includes("Motion")) icon = "fa-walking";
-
-                    logList.innerHTML += `
-                        <div style="text-align: left; padding: 12px; border-bottom: 1px solid #333; display: flex; align-items: center; gap: 15px;">
-                            <i class="fas ${icon}" style="color: ${color}"></i>
-                            <div style="flex-grow: 1;">
-                                <div style="font-size: 0.9em; font-weight: bold;">${log.event || "System Update"}</div>
-                                <div style="font-size: 0.75em; color: #777;">
-                                    ${log.time} • Bright: ${log.bright} • Mode: ${log.mode}
-                                </div>
-                                <div style="font-size: 0.7em; color: var(--blynk-blue);">User: ${log.matric}</div>
-                            </div>
-                        </div>
-                    `;
-                });
-            } catch (e) {
-                console.error(e);
-                logList.innerHTML = '<div style="padding:20px; color:var(--blynk-red);">Failed to load logs.</div>';
-            }
-        }
-
-        function initializeListeners() {
-            // --- FIX 1: Listen to Control (Syncs Toggles and Mode Visibility) ---
-            db.ref(lampPath + "/Control").on("value", (snapshot) => {
-                const ctrl = snapshot.val();
-                if (!ctrl) return;
-
-                // Sync the Master Power toggle
-                document.getElementById("powerToggle").checked = ctrl.systemPower;
-
-                // Sync the Auto/Manual toggle
-                document.getElementById("autoToggle").checked = ctrl.autoDim;
-
-                // FIX: This part makes the Auto/Manual areas hide and show correctly
-                if (ctrl.autoDim) {
-                    document.getElementById("auto-area").style.display = "block";
-                    document.getElementById("manual-area").style.display = "none";
-                } else {
-                    document.getElementById("auto-area").style.display = "none";
-                    document.getElementById("manual-area").style.display = "block";
-                }
-
-                // Update Slider position
-                document.getElementById("brightSlider").value = ctrl.manualBrightness;
-                document.getElementById("manual-bright-val").innerText = Math.round((ctrl.manualBrightness / 255) * 100) + "%";
-            });
-
-            // --- FIX 2: Listen to Live Status (The 4 Statuses) ---
-            db.ref(lampPath + "/Live_Data").on("value", (snapshot) => {
-                const data = snapshot.val();
-                if (!data) return;
-                
-                // Update sensor values
-                document.getElementById("ldr-val").innerText = data.LDR_Raw;
-                document.getElementById("auto-bright-val").innerText = Math.round((data.Brightness / 255) * 100) + "%";
-                
-                // Change colors based on status string
-                // Updated Color logic: Check for OFF first to avoid "motiON" confusion
-                // Update Status Display from ESP32 string
-                const statusBox = document.getElementById("status-display");
-                const currentStatus = (data.Status || "UNKNOWN").toUpperCase(); // Convert to Uppercase to be safe
-                statusBox.innerText = currentStatus;
-
-                // FIX: Specific check to prevent "motiON" from triggering green
-                if (currentStatus.includes("OFF")) {
-                    // If the string has "OFF" anywhere, it's RED
-                    statusBox.style.color = "var(--blynk-red)"; 
-                    statusBox.style.borderLeftColor = "var(--blynk-red)";
-                } else if (currentStatus.includes("ON:")) { 
-                    // Adding the colon ":" ensures we match "ON: MOTION" 
-                    // but NOT the "ON" inside the word "MOTION"
-                    statusBox.style.color = "var(--blynk-green)"; 
-                    statusBox.style.borderLeftColor = "var(--blynk-green)";
-                } else {
-                    statusBox.style.color = "#888"; 
-                    statusBox.style.borderLeftColor = "#888";
-                }
-            });
-        }
-
-        let currentView = 'grid'; // Default view
-
         function changeView(view) {
             currentView = view;
             const list = document.getElementById("log-list");
-            
-            // Update UI buttons
             document.getElementById("view-grid").style.color = (view === 'grid') ? "var(--blynk-blue)" : "#666";
             document.getElementById("view-table").style.color = (view === 'table') ? "var(--blynk-blue)" : "#666";
-            
-            // Switch the class
             list.className = (view === 'grid') ? "view-grid" : "view-table";
-            
-            fetchLogs(); // Re-render the data in the new style
+            fetchLogs(); 
         }
 
         function toggleCard(element) {
             element.classList.toggle('active');
         }
 
+        // --- 4. DATA FETCHING (HISTORY) ---
         async function fetchLogs() {
             const logList = document.getElementById("log-list");
             logList.innerHTML = '<div style="padding:20px; grid-column: span 2;"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
@@ -548,61 +466,43 @@
                 
                 if (currentView === 'grid') {
                     logList.innerHTML = displayLimit.map(log => {
-                        // Fix Brightness: Convert 0.53 to 53%
                         let brightDisplay = log.bright;
                         if (!brightDisplay.toString().includes('%')) {
                             brightDisplay = (parseFloat(brightDisplay) * 100).toFixed(0) + "%";
                         }
-
-                        // Power Status formatting
-                        const powerStatus = log.power === 'ON' ? 'ON' : 'OFF';
                         const powerIconColor = log.power === 'ON' ? 'var(--blynk-green)' : '#888';
 
                         return `
-                            <div class="log-card" onclick="toggleCard(this)" style="cursor: pointer; border-left-color: var(--blynk-blue);">
+                            <div class="log-card" onclick="toggleCard(this)" style="cursor: pointer;">
                                 <div style="display: flex; justify-content: space-between; align-items: start;">
                                     <div>
                                         <div style="font-weight: bold; color: #fff; font-size: 0.95em;">
                                             ${log.event} <i class="fas fa-chevron-down expand-icon" style="margin-left: 5px;"></i>
                                         </div>
-                                        <div style="font-size: 0.7em; color: #888; margin-top: 2px;">
-                                            ${log.time}
-                                        </div>
+                                        <div style="font-size: 0.7em; color: #888; margin-top: 2px;">${log.time}</div>
                                     </div>
                                     <span style="font-size: 0.65em; background: #333; padding: 2px 6px; border-radius: 4px; color: var(--blynk-blue);">
                                         ID: ${log.matric}
                                     </span>
                                 </div>
-                                
                                 <div class="card-details">
-                                    <span><i class="fas fa-power-off" style="color: ${powerIconColor};"></i> Status: <b>${powerStatus}</b></span>
+                                    <span><i class="fas fa-power-off" style="color: ${powerIconColor};"></i> Status: <b>${log.power}</b></span>
                                     <span><i class="fas fa-lightbulb" style="color: #fff;"></i> Bright: <b>${brightDisplay}</b></span>
                                     <span><i class="fas fa-cog" style="color: #aaa;"></i> Mode: <b>${log.mode}</b></span>
                                 </div>
-                            </div>
-                        `;
+                            </div>`;
                     }).join('');
                 } else {
-                    // RENDER TABLE
-                    // Inside the 'else' block for Table View:
                     logList.innerHTML = `
                         <div style="overflow-x: auto;">
                             <table class="history-table">
                                 <thead>
-                                    <tr>
-                                        <th>Time</th>
-                                        <th>Event</th>
-                                        <th>Status</th>
-                                        <th>Bright</th>
-                                        <th>Mode</th>
-                                        <th>User</th>
-                                    </tr>
+                                    <tr><th>Time</th><th>Event</th><th>Status</th><th>Bright</th><th>Mode</th><th>User</th></tr>
                                 </thead>
                                 <tbody>
                                     ${displayLimit.map(log => {
                                         let b = log.bright;
                                         if (!b.toString().includes('%')) b = (parseFloat(b) * 100).toFixed(0) + "%";
-                                        
                                         return `
                                             <tr>
                                                 <td style="color: #888;">${log.time}</td>
@@ -618,15 +518,66 @@
                         </div>`;
                 }
             } catch (e) {
-                logList.innerHTML = '<div style="padding:20px; grid-column: span 2;">Error loading data.</div>';
+                logList.innerHTML = '<div style="padding:20px; grid-column: span 2; color:var(--blynk-red);">Error loading data.</div>';
             }
         }
 
+        // --- 5. REAL-TIME LISTENERS ---
+        function initializeListeners() {
+            // Listen to Device Controls
+            db.ref(lampPath + "/Control").on("value", (snapshot) => {
+                const ctrl = snapshot.val();
+                if (!ctrl) return;
+
+                const isPowerAuto = ctrl.powerAuto || false;
+                document.getElementById("powerModeToggle").checked = isPowerAuto;
+                document.getElementById("powerToggle").checked = ctrl.systemPower;
+
+                document.getElementById("power-auto-area").style.display = isPowerAuto ? "block" : "none";
+                document.getElementById("power-manual-area").style.display = isPowerAuto ? "none" : "block";
+
+                document.getElementById("autoToggle").checked = ctrl.autoDim;
+                document.getElementById("auto-area").style.display = ctrl.autoDim ? "block" : "none";
+                document.getElementById("manual-area").style.display = ctrl.autoDim ? "none" : "block";
+
+                document.getElementById("brightSlider").value = ctrl.manualBrightness;
+                document.getElementById("manual-bright-val").innerText = Math.round((ctrl.manualBrightness / 255) * 100) + "%";
+            });
+
+            // Listen to Live Sensor Data
+            db.ref(lampPath + "/Live_Data").on("value", (snapshot) => {
+                const data = snapshot.val();
+                if (!data) return;
+                
+                document.getElementById("ldr-val").innerText = data.LDR_Raw;
+                document.getElementById("auto-bright-val").innerText = Math.round((data.Brightness / 255) * 100) + "%";
+                
+                const statusBox = document.getElementById("status-display");
+                const currentStatus = (data.Status || "UNKNOWN").toUpperCase();
+                statusBox.innerText = currentStatus;
+
+                if (currentStatus.includes("OFF")) {
+                    statusBox.style.color = "var(--blynk-red)"; 
+                    statusBox.style.borderLeftColor = "var(--blynk-red)";
+                } else if (currentStatus.includes("ON:")) { 
+                    statusBox.style.color = "var(--blynk-green)"; 
+                    statusBox.style.borderLeftColor = "var(--blynk-green)";
+                } else {
+                    statusBox.style.color = "#888"; 
+                    statusBox.style.borderLeftColor = "#888";
+                }
+            });
+        }
+
+        // --- 6. OUTGOING COMMANDS ---
         function sendPower(state) {
             db.ref(lampPath + "/Control").update({ 
                 systemPower: state, 
                 lastOffReason: state ? "ACTIVE" : "OFF: BY USER" 
             });
+        }
+        function sendPowerMode(state) {
+            db.ref(lampPath + "/Control").update({ powerAuto: state });
         }
         function sendMode(state) {
             db.ref(lampPath + "/Control").update({ autoDim: state });
@@ -636,9 +587,7 @@
             db.ref(lampPath + "/Control").update({ manualBrightness: parseInt(val) });
         }
         function reconfigureLamp() { 
-            if(confirm("Change lamp location settings?")) {
-                window.location.href = "register.html?mode=edit"; 
-            }
+            if(confirm("Change lamp location settings?")) window.location.href = "register.html?mode=edit"; 
         }
         function logout() {
             if (confirm("Are you sure you want to log out?")) {
